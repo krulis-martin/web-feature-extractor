@@ -1,0 +1,191 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+	<meta charset="utf-8">
+	<title>Image Feature Extraction</title>
+
+	<link href="style/main.css" rel="stylesheet" type="text/css">
+	<style type="text/css">
+		section>*:not(h2) {
+			font-size: 14pt;
+		}
+		
+		#parameters {
+			border-spacing: 0;
+		}
+		
+		#parameters td {
+			padding: 8px;
+		}
+		
+		#parameters td:first-of-type {
+			white-space: nowrap;
+			padding-right: 20px;
+			font-style: italic;
+		}
+
+		#parameters tr:nth-last-of-type(2n) td {
+			background-color: #e7e7ef;
+		}
+		
+		#parameters tr:nth-last-of-type(2n+1) td {
+			background-color: #fbfbff;
+		}
+		
+	</style>
+</head>
+
+<body>
+<header>
+	<h1>Image Feature Extraction Demo</h1>
+</header>
+
+<section>
+	<h2>Recent Changes</h2>
+	<ul>
+		<li>
+			<strong>6.7.2016</strong> &mdash; A serious bug was found in loading configuration parameters.
+			The bug was caused by an unpleasant fact that Javascript uses operator <code>+</code> for both
+			numeric addition and string concatenation. Numeric parameters were not correctly converted from
+			string to number, which caused slight misconfiguration of the extractor.
+			The problem was fixed in version <strong>0.2</strong>.
+		</li>
+		<li>
+			<strong>15.10.2015</strong> &mdash; Version <strong>0.1</strong> of the extractor released.
+		</li>
+	</ul>
+
+	<h2>About</h2>
+	<p>
+		This demo presents a feature extraction method that captures color and texture information
+		from an image and produces adaptive signatures for
+		<a href="https://en.wikipedia.org/wiki/Similarity_search" target="_blank">similarity search models</a>,
+		where distances like <a href="http://dl.acm.org/citation.cfm?id=1816105" target="_blank">SQFD</a>
+		or <a href="https://en.wikipedia.org/wiki/Earth_mover's_distance" target="_blank">EMD</a> can be used.
+		The method and its parallel implementation for GPUs is presented in our publication
+		<em>Kruliš M., Lokoč J., Skopal T.:
+		<strong>Efficient Extraction of Clustering-Based Feature Signatures Using GPU Architectures</strong>,
+		in Multimedia Tools and Applications 2015</em>. We are currently transforming the code,
+		it can be used as OpenCV module.
+	</p>
+
+	<p>
+		The demo is also a proof of concept that goes against the current trends in web applications.
+		We propose to offload computations from the servers (or cloud) to end users by performing computationally
+		demanding tasks in the browser. In this case, we claim that in a web application that collects the
+		images from the users, the feature extraction process can be performed by the browser while the image
+		is being uploaded. More details can be found in paper <em>Kruliš M.:
+		<strong>Is There a Free Lunch for Image Feature Extraction in Web Applications</strong>,
+		accepted for publication in Similarity Search and Applications, Glasgow, Springer, pp. 283-294, 2015</em>
+	</p>
+</section>
+
+<section>
+	<h2>Author and Acknowledgements</h2>
+	<p>
+		<a href="http://www.ksi.mff.cuni.cz/~krulis" target="_blank">Martin Kruliš</a> is assistant professor at
+		<a href="http://www.ksi.mff.cuni.cz/" target="_blank">Department of Software Engineering</a>,
+		<a href="http://www.mff.cuni.cz/to.en/" target="_blank">Faculty of Mathematics and Physics</a>,
+		<a href="http://www.cuni.cz/UKEN-1.html" target="_blank">Charles University in Prague</a>, Czech Republic.
+		He is member of <a href="http://siret.ms.mff.cuni.cz/" target="_blank">Similarity Retrieval</a> research group and
+		<a href="http://www.ksi.mff.cuni.cz/parg/" target="_blank">Parallel Architectures/Algorithms/Applications Research Group</a>.
+		His research areas of interest cover mainly parallel programming, (multimedia) databases, similarity search,
+		and web technologies.
+	</p>
+	
+	<p>
+		This work was supported by <a href="http://gacr.cz/en/" target="_blank">Czech Science Foundation (GAČR)</a>, grant no. P103-14-14292P
+	</p>
+</section>
+
+<section>
+	<h2>Download</h2>
+	<p>
+		The demo is licensed under a <a rel="license" href="http://creativecommons.org/licenses/by-nc/4.0/">Creative Commons Attribution-NonCommercial 4.0 International License</a>.
+	</p>
+	
+	<ul>
+		<li><a href="download/test-images.zip">A set of testing images</a> for your convenience</li>
+		<li><a href="download/web-extractor-0.2.zip">Web extractor code</a> (v 0.2, 6.7.2016)</li>
+	</ul>
+</section>	
+
+<section>
+	<h2>Configuration Parameters</h2>
+	<p>
+		The extractor has many parameters which affect the sampling method and the subsequent k-means clustering.
+		We revise these parameters briefly, for more details please refer to the publications mentioned above.
+		The default values are designed to produce decent results for most images.
+	<p>
+		
+	<table id="parameters">
+		<tr>
+			<td>image width and height</td>
+			<td>size in pixels to which the image is resampled first</td>
+		</tr>
+		<tr>
+			<td>keep aspect ratio</td>
+			<td>if checked, aspect ratio of image width and height is maintained (the image is resampled so it would not exceed the specified width and height values)</td>
+		</tr>
+		<tr>
+			<td>sampling points</td>
+			<td>number of initial samples taken from the image (gaussian sampling points are currently used); these sampled features become the input for clustering</td>
+		</tr>
+		<tr>
+			<td>FS weights</td>
+			<td>weights (multiplicative constants) that linearly stretch individual axes of the feature space (x,y = position; L,a,b = color in CIE Lab space; c = contrast. e = entropy)</td>
+		</tr>
+		<tr>
+			<td>greyscale bits</td>
+			<td>color resolution of the greyscale bitmap represented in allocated bits (i.e., value 4 means that 16 shades of grey are used); 
+				the greyscale bitmap is used for computing contrast and entropy values</td>
+		</tr>
+		<tr>
+			<td>sampling window</td>
+			<td>size of the texture sampling window used to compute contrast and entropy
+				(center of the window is always in the pixel selected by x,y coordinates of the corresponding feature sample)</td>
+		</tr>
+		<tr>
+			<td>iterations</td>
+			<td>number of iterations of the k-means clustering; we use fixed number of iterations,
+				since the modified clustering is pruning clusters (not iteratively refining k clusters)</td>
+		</tr>
+		<tr>
+			<td>seeds</td>
+			<td>number of initial seeds (initial number of clusters) for the k-means algorithm</td>
+		</tr>
+		<tr>
+			<td>join threshold</td>
+			<td>threshold euclidean distance between two centroids; if two cluster centers are closer than this distance,
+				one of the centroid is dismissed and points are reassigned</td>
+		</tr>
+		<tr>
+			<td>cluster min. size</td>
+			<td>this parameter multiplied by the index of iteration gives lower limit for cluster size;
+				clusters containing fewer points than specified by the limit have their centroid dismissed and points are reassigned</td>
+		</tr>
+	</table>
+</section>
+
+<section>
+	<h2>Output Format</h2>
+	<p>
+		The signatures may be downloaded in a simple text format, which is specified as follows.
+		Each signature is placed on one row as a sequence of comma-separated values.
+		First three values are <em>image name</em>, <em>signature length</em> (N), and <em>feature space dimension</em> (7 in our case).
+		These three values are followed by N blocks of 8 numbers, where each octuplet represents one feature sample (i.e., cluster).
+		The first value of each octuplet is the weight of that cluster/feature and the subsequent seven numbers are feature coordinates
+		(x, y, L, a, b, c, e).
+	</p>
+</section>
+
+<footer>
+	<a rel="license" href="http://creativecommons.org/licenses/by-nc/4.0/">
+		<img alt="Creative Commons License" style="border-width:0" src="https://i.creativecommons.org/l/by-nc/4.0/80x15.png"
+		title="This work is licensed under a Creative Commons Attribution-NonCommercial 4.0 International License">
+	</a>
+	
+	created by Martin Kruliš, 2015
+</footer>
+</body>
+</html>

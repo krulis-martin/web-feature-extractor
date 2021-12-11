@@ -1,0 +1,539 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+	<meta charset="utf-8">
+	<title>Image Feature Extraction</title>
+
+	<link href="style/main.css" rel="stylesheet" type="text/css">
+
+	<script type="text/javascript" src="js/jquery-2.1.0.min.js"></script>
+	<script type="text/javascript" src="js/saveAs.js"></script>
+	<script type="text/javascript" src="js/configuration.js"></script>
+	<script type="text/javascript" src="js/feature-extraction.js"></script>
+	<script type="text/javascript">
+	$(document).ready(function(){
+		/*
+		 * Feature Extractor Demo
+		 * by Martin Krulis <krulis@ksi.mff.cuni.cz>
+		 *
+		 * v0.2, released 6.7.2016
+		 * License CC BY-NC 4.0 (https://creativecommons.org/licenses/by-nc/4.0/)
+		 */
+		
+		// List of loaded images.
+		var images = [];
+		
+		/*
+		 * Helping Functions
+		 */
+		
+		// Image loading and resizing completion handler.
+		function loadCompletionHandler(image, file)
+		{			
+			var info = image.info;
+			info.html("<p class=\"fileInfo\"><strong>File: " + file.name + "</strong>"
+				+ "<br>File size: " + Math.round(file.size/1024) + " kB"
+				+ "<br>Loading time: " + image.getLoadTime() + "ms"
+				+ "<br>Resizing time: " + image.getResizeTime() + "ms" + "</p>"
+			);
+		}
+		
+		
+		// Extraction completion event handler (visualize signature and append info).
+		function extractionCompletionHandler(image)
+		{
+			var info = image.info;
+			info.find(".signatureInfo").remove();
+			
+			if (image.extractionError) {
+				info.append("<p class=\"signatureInfo\">Extraction Error: " + image.extractionError + "</p>");
+			}
+			else {
+				FE.visualizeSignature(image.svg, image.signature, $("#imagesSignatureMagnify").val());
+				info.append("<p class=\"signatureInfo\">Signature size: " + image.signature.length
+					+ "<br>Extraction (process) time: " + image.getExtractionTime() + "ms"
+					+ "<br>Extraction (waiting) time: " + image.getWaitingTime() + "ms"
+					+ "<br>Total time: " + image.getTotalTime() + "ms" + "</p>"
+				);
+			}			
+		}
+		
+		
+		// Add another image to our working set and initiate the extraction.
+		// idx - Index in the images list.
+		// file - The File API object representing the uploaded file.
+		function addImageFile(idx, file)
+		{
+			// Prepare the image meta object.
+			var image = new FE.Image(idx);
+			
+			// Create a new row in table.
+			var row = $("#imageTable tr.template").clone();
+			row.removeClass("template").addClass("imageRow");
+			row.data("imageIdx", idx);
+			row.find(".originalImage").append(image.image);
+			row.find(".thumbnail").append(image.thumbnailCanvas);
+			$("#imageTable").append(row);
+
+			// Attach visualization entities to image meta object.			
+			image.tableRow = row;
+			image.svg = row.find(".extractedSignature svg")[0];
+			image.info = row.find(".info");
+
+			// Attach controls handlers
+			row.find(".repeatBtn").click(repeatBtnClickHandler);
+			row.find(".removeBtn").click(removeBtnClickHandler);
+			row.find(".downloadBtn").click(downloadBtnClickHandler);
+
+			image.load(file, true, loadCompletionHandler);
+			return image;
+		}
+		
+		
+		// Process a list of newly inserted images.
+		function addFileList(files) {
+			if (files.length == 0)
+				return 0;
+		
+			var added = 0;		// how many images were successfully added
+			var noImages = [];	// list of file name, which failed (not images)
+			
+			// Process files one by one ...
+			for (var i = 0; i < files.length; ++i) {
+				if (files[i].type.match( /image.*/ )) {
+					var image = addImageFile(images.length, files[i]);
+					images.push(image);
+					++added;
+				} else {
+					noImages.push(files[i].name);
+				}
+			}
+			
+			// Some files are not images ...
+			if (noImages.length > 0) {
+				alert("The following files were not loaded: '" + noImages.join("', '")
+					+ "'. They are either not images or their format is not supported.");
+			}
+			
+			if (added) {
+				$("#noExtractedImages").hide();
+				$("#extractedImages").show();
+			}
+			
+			return added;
+		}
+		
+		
+		/*
+		 * Feature Extractor Initialization
+		 */
+		FE.initialize(1, extractionCompletionHandler);
+		
+		
+		/*
+		 * Feature Extractor Configuration
+		 */
+		
+		// Make sure each range input shows its value in corresponding output.
+		$("#configuration output").each(function(){
+			var output = this;
+			$("#" + output.htmlFor).on("input", function(){
+				output.value = this.value;
+				$(output).trigger("postprocess");
+			});
+		});
+		
+		
+		// Patch output (assigned to range input picking window radius) to show window size (instead of radius).
+		$("output[for='inputRadius']").on("postprocess", function(){
+			var value = parseInt(this.value);
+			if (isNaN(value)) return;
+			value = 2*value + 1;
+			this.value = value + "x" + value;
+		});
+		
+
+		// Bind input elements with configuration parameters.
+		FE.Configuration.assignElements({
+			width: "inputWidth",
+			height: "inputHeight",
+			keepAspectRatio: "inputKeepAspectRatio",
+			pointCount: "inputPointCount",
+			fsWeights: {
+				x: "inputFsWeightsX",
+				y: "inputFsWeightsY",
+				L: "inputFsWeightsL",
+				a: "inputFsWeightsA",
+				b: "inputFsWeightsB",
+				c: "inputFsWeightsC",
+				e: "inputFsWeightsE",
+			},
+			greyscale: "inputGreyscale",
+			radius: "inputRadius",
+			seeds: "inputSeeds",
+			iterations: "inputIterations",
+			joinThreshold: "inputJoinThreshold",
+			clusterMinSize: "inputClusterMinSize",
+		});
+				
+		// The open button shows the config form.
+		$("#configbtnOpen").click(function(ev){
+			ev.preventDefault();
+			$("#configuration").slideDown(500);
+			FE.Configuration.setToUI();
+		});
+		
+		// Save configuration changes.
+		$("#configbtnOK").click(function(){
+			FE.Configuration.loadFromUI();
+			$("#configuration").slideUp(300);
+		});
+		
+		// Discard configuration changes.
+		$("#configbtnCancel").click(function(){
+			$("#configuration").slideUp(300);
+		});
+		
+		// Restore default settings.
+		$("#configbtnDefaults").click(function(){
+			FE.Configuration.restoreDefaults();
+			FE.Configuration.setToUI();
+		});
+		
+		FE.Configuration.restoreDefaults();
+		
+		
+		/*
+		 * File Open/Drop Event Handlers
+		 */
+
+		// What the heck, lets get any dropped files for the entire window (in case the user misses the drop zone).
+		$(window).on("dragover", function(ev) {
+			ev.preventDefault();
+		});
+		$(window).on("drop", function(ev) {
+			ev.preventDefault();
+			if (ev.originalEvent.dataTransfer.files)
+				addFileList(ev.originalEvent.dataTransfer.files)
+		});
+
+
+		// Make sure clicks on dropzone are transferred to the input element.
+		$("#dropzone").click(function(){
+			$("#inputFile").click();
+		});
+		
+		// Prevent hidden form used for file input from submitting.
+		$("#dropzone form").submit(function(ev){
+			ev.preventDefault();
+		})
+		
+		// Handle file input.
+		$("#inputFile").click(function(ev){
+			// Make sure the click event does not trigger parent (#dropzone) click.
+			ev.stopPropagation();
+		}).change(function(ev){
+			// List selected files and add them to the image list.
+			addFileList($("#inputFile")[0].files);
+		});
+
+
+
+		/*
+		 * Controls 
+		 */
+	
+		// Check whether all images are in extracted state (so its safe to invoke global control command).
+		function areAllImagesExtracted()
+		{
+			for (var i = 0; i < images.length; ++i)
+				if (!images[i].isExtracted()) return false;
+			return true;
+		}
+		
+		
+		// Remove all images (clear the scene).
+		$("#deleteAllBtn").click(function(ev){
+			ev.preventDefault();
+			if (images.length == 0 || !areAllImagesExtracted()) return;
+			if (!window.confirm("Do you really wish to remove all extracted images?"))
+				return;
+			
+			images = [];
+			$("#imageTable tr.imageRow").remove();
+			$("#extractedImages").hide();
+			$("#noExtractedImages").show();
+		});
+		
+		
+		// Remove all images (clear the scene).
+		$("#repeatAllBtn").click(function(ev){
+			ev.preventDefault();
+			if (images.length == 0 || !areAllImagesExtracted()) return;
+			if (!window.confirm("Do you really wish to repeat feature extraction for all images?"))
+				return;
+			
+			for (var i = 0; i < images.length; ++i) {
+				$(images[i].svg).empty();
+				images[i].info.find(".signatureInfo").remove();
+				FE.enqueue(images[i]);
+			}
+		});
+		
+		
+		// Remove all images (clear the scene).
+		$("#downloadAllBtn").click(function(ev){
+			ev.preventDefault();
+			if (images.length == 0 || !areAllImagesExtracted()) return;
+			
+			// Prepare the data
+			svfSignatures = [];
+			for (var i = 0; i < images.length; ++i) {
+				svfSignatures.push(images[i].getSignatureAsSVF());
+			}
+			svfSignatures.push("");
+			svfText = svfSignatures.join("\n");
+			
+			// Convert the text to blob and save it.
+			var blob = new Blob([svfText], { type: 'text/plain' });
+			window.saveAs(blob, "signatures.svf");
+		});
+		
+		
+		// Repeat the extraction on selected image.
+		function repeatBtnClickHandler()
+		{
+			var image = images[$(this).parentsUntil("table", "tr").data("imageIdx")];
+			if (!image || !image.isExtracted())
+				return;
+			
+			$(image.svg).empty();
+			image.info.find(".signatureInfo").remove();
+			FE.enqueue(image);
+		}
+		
+		
+		// Repeat the extraction on selected image.
+		function removeBtnClickHandler()
+		{
+			var image = images[$(this).parentsUntil("table", "tr").data("imageIdx")];
+			if (!image || !image.isExtracted())
+				return;
+			
+			// Reindex the image array.
+			var idx = image.idx;
+			while (idx < images.length-1) {
+				images[idx] = images[idx+1];
+				images[idx].idx = idx;
+				images[idx].tableRow.data("imageIdx", idx);
+				++idx;
+			}
+			images.pop();
+			image.tableRow.remove();
+		}
+		
+				
+		// Repeat the extraction on selected image.
+		function downloadBtnClickHandler()
+		{
+			var image = images[$(this).parentsUntil("table", "tr").data("imageIdx")];
+			if (!image || !image.isExtracted())
+				return;
+				
+			// Convert the text to blob and save it.
+			var blob = new Blob([ image.getSignatureAsSVF(), "\n" ], { type: 'text/plain' });
+			window.saveAs(blob, image.fileName + ".svf");			
+		}
+		
+		$("#controls img").each(function(){
+			$(this).attr("title", $(this).attr("alt"));
+		});
+		
+
+		/*
+		 * Visualization
+		 */
+		
+		$("#imagesSignatureMagnify").change(function(){
+			for (var i = 0; i < images.length; ++i) {
+				FE.visualizeSignature(images[i].svg, images[i].signature, $("#imagesSignatureMagnify").val());
+			}
+		});
+		
+		$("#imagesMagnifyReset").click(function(){
+			$("#imagesSignatureMagnify").val(5);
+			$("#imagesSignatureMagnify").trigger("change");
+		});
+		
+		$("#extractedImages").hide();
+	});
+	</script>
+</head>
+
+<body>
+<header>
+	<h1>Image Feature Extraction Demo</h1>
+	
+	<div id="controls">
+		<a id="infoBtn" href="about.html" target="_blank"><img src="pic/info.png" alt="About this project"></a>
+		<a id="configbtnOpen" href=""><img src="pic/config.png" alt="Extraction configuration"></a>
+		<a id="repeatAllBtn" href=""><img src="pic/again.png" alt="Repeat extraction for all images"></a>
+		<a id="deleteAllBtn" href=""><img src="pic/trash.png" alt="Remove all images"></a>
+		<a id="downloadAllBtn" href=""><img src="pic/download.png" alt="Download all signatures"></a>
+		<div id="dropzone">
+			<form action="">
+				<input id="inputFile" type="file" multiple>
+			</form>
+			drop your images here
+			(or click for dialog)
+		</div>
+	</div>
+	
+	<div id="configuration">
+		<h2>Configuration</h2>
+		<form action="">
+		<table>
+			<tr><th colspan="2">Image</th></tr>
+			<tr>
+				<td><label for="inputWidth">Width:</label></td>
+				<td><input id="inputWidth" class="inputConfig" type="number" min="16" max="1024"></td>
+			</tr>
+			<tr>
+				<td><label for="inputHeight">Height:</label></td>
+				<td><input id="inputHeight" class="inputConfig" type="number" min="16" max="1024"></td>
+			</tr>
+			<tr>
+				<td colspan="2"><input id="inputKeepAspectRatio" class="inputConfig" type="checkbox"> <label for="inputKeepAspectRatio">keep aspect ratio</label></td>
+			</tr>
+			<tr>
+				<td><label for="inputPointCount">Sampling points:</label></td>
+				<td><input id="inputPointCount" class="inputConfig" type="number" min="10"></td>
+			</tr>
+		</table>
+		
+		<table>
+			<tr><th colspan="2">FS Weights</th></tr>
+			<tr>
+				<td><label for="inputFsWeightsX">x:</label></td>
+				<td><input id="inputFsWeightsX" class="inputConfig" type="number" min="0.1" max="1000" step="0.1"></td>
+			</tr>
+			<tr>
+				<td><label for="inputFsWeightsY">y:</label></td>
+				<td><input id="inputFsWeightsY" class="inputConfig" type="number" min="0.1" max="1000" step="0.1"></td>
+			</tr>
+			<tr>
+				<td><label for="inputFsWeightsL">L:</label></td>
+				<td><input id="inputFsWeightsL" class="inputConfig" type="number" min="0.1" max="1000" step="0.1"></td>
+			</tr>
+			<tr>
+				<td><label for="inputFsWeightsA">a:</label></td>
+				<td><input id="inputFsWeightsA" class="inputConfig" type="number" min="0.1" max="1000" step="0.1"></td>
+			</tr>
+			<tr>
+				<td><label for="inputFsWeightsB">b:</label></td>
+				<td><input id="inputFsWeightsB" class="inputConfig" type="number" min="0.1" max="1000" step="0.1"></td>
+			</tr>
+			<tr>
+				<td><label for="inputFsWeightsC">c:</label></td>
+				<td><input id="inputFsWeightsC" class="inputConfig" type="number" min="0.1" max="1000" step="0.1"></td>
+			</tr>
+			<tr>
+				<td><label for="inputFsWeightsE">e:</label></td>
+				<td><input id="inputFsWeightsE" class="inputConfig" type="number" min="0.1" max="1000" step="0.1"></td>
+			</tr>
+		</table>
+		
+
+		<table>
+			<tr><th colspan="2">Sampling Parameters</th></tr>
+			<tr>
+				<td><label for="inputGreyscale">Greyscale bits:</label></td>
+				<td>
+					<input id="inputGreyscale" class="inputConfig" type="range" min="2" max="16">
+					<output for="inputGreyscale">
+				</td>
+			</tr>
+			<tr>
+				<td><label for="inputRadius">Sampling window:</label></td>
+				<td>
+					<input id="inputRadius" class="inputConfig" type="range" min="1" max="8">
+					<output for="inputRadius">
+				</td>
+			</tr>
+			<tr>
+				<td><label for="inputIterations">Iterations:</label></td>
+				<td>
+					<input id="inputIterations" class="inputConfig" type="range" min="5" max="50" step="5">
+					<output for="inputIterations">
+				</td>
+			</tr>
+			<tr>
+				<td><label for="inputSeeds">Seeds:</label></td>
+				<td><input id="inputSeeds" class="inputConfig" type="number" min="10"></td>
+			</tr>
+			<tr>
+				<td><label for="inputJoinThreshold">Join threshold:</label></td>
+				<td><input id="inputJoinThreshold" class="inputConfig" type="number" min="0" step="0.05" max="2"></td>
+			</tr>
+			<tr>
+				<td><label for="inputClusterMinSize">Cluster min. size:</label></td>
+				<td>
+					<input id="inputClusterMinSize" class="inputConfig" type="range" min="0" max="10">
+					<output for="inputClusterMinSize">
+				</td>
+			</tr>
+		</table>
+		
+		<div id="configuration_buttons">
+			<button id="configbtnOK" type="button">OK</button>
+			<button id="configbtnCancel" type="button">Cancel</button>
+			<button id="configbtnDefaults" type="button">Restore Defaults</button>
+		</div>
+		</form>
+	</div>
+</header>
+
+<main>
+	<h2>Extracted Images</h2>
+	<div id="noExtractedImages">
+		<p>There are currently no extracted images.</p>
+	</div>
+	
+	<div id="extractedImages">
+	<table id="imageTable" cellpadding="0" cellspacing="0" border="0">
+		<tr>
+			<th>Original Image</th>
+			<th>Thumbnail</th>
+			<th>Extracted Signature
+				<input id="imagesSignatureMagnify" type="range" min="1" max="10" value="5" step="0.2">
+				<button id="imagesMagnifyReset" type="button">Default</button>
+			</th>
+			<th>Info</th>
+			<th></th>
+		</tr>
+		<tr class="template">
+			<td class="originalImage"></td>
+			<td class="thumbnail"></td>
+			<td class="extractedSignature"><svg width="300" height="200"></svg></td>
+			<td class="info"></td>
+			<td class="buttons">
+				<img class="repeatBtn" src="pic/again-small.png" alt="repeat extraction"><br>
+				<img class="removeBtn" src="pic/trash-small.png" alt="remove"><br>
+				<img class="downloadBtn" src="pic/download-small.png" alt="download signature">
+			</td>
+		</tr>
+	</table>
+	</div>
+</main>
+
+<footer>
+	<a rel="license" href="http://creativecommons.org/licenses/by-nc/4.0/">
+		<img alt="Creative Commons License" style="border-width:0" src="https://i.creativecommons.org/l/by-nc/4.0/80x15.png"
+		title="This work is licensed under a Creative Commons Attribution-NonCommercial 4.0 International License">
+	</a>
+	
+	<a href="https://www.iconfinder.com/iconsets/windows-8-metro-style" target="_blank">Windows 8 metro free icon set</a> was used in this page<br>
+	created by Martin Kruliš, 2015
+</footer>
+</body>
+</html>

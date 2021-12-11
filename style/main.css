@@ -1,0 +1,177 @@
+body {
+	font-family: Calibri, 'Gill Sans', 'Gill Sans MT', 'Trebuchet MS', sans-serif;
+	margin: 0;
+	padding: 25px;
+}
+
+h1 {
+	margin: 0;
+	margin-bottom: 10px;
+	padding-bottom: 10px;
+	border-bottom: 1px solid #ccc;
+}
+
+footer {
+	font-size: 9pt;
+	border-top: 1px solid #ccc;
+	margin: 30px 0 0;
+	padding: 10px;
+	text-align: right;
+	color: #999;
+}
+
+footer a {
+	color: #666;
+	text-decoration: none;
+}
+
+footer a[rel=license] {
+	float: left;
+}
+
+
+
+/* Generic Classes */
+.template {
+	display: none;
+}
+
+
+/* Control Buttons */
+#controls a img {
+	margin: 8px;
+	vertical-align: top;
+}
+
+
+
+/* File Drop Zone */
+#dropzone input[type=file] {
+	display: none;
+}
+
+#dropzone {
+	color: #999999;
+	border: 2px dashed #cccccc;
+	padding: 10px 20px;
+	cursor: default;
+	position: absolute;
+	top: 90px;
+	left: 290px;
+	right: 30px;
+}
+
+
+/*
+ * Configuration
+ */
+#configuration {
+	padding: 10px;
+	margin: 20px 0;
+	border: 1px solid #ccc;
+	box-shadow: 2px 2px 2px #999;
+	text-align: center;
+	display: none;
+}
+
+#configuration h2 {
+	margin: 10px;
+	margin-bottom: 0;
+}
+
+#configuration form table {
+	display: inline-table;
+	margin: 10px 20px;
+}
+
+#configuration form td {
+	padding: 2px;
+	text-align: left;
+}
+
+#configuration form td:first-child {
+	text-align: right;
+	padding-right: 5px;
+}
+
+#configuration form th {
+	padding: 4px 2px;
+	text-align: left;
+}
+
+#configuration form th:after {
+	content: ':'; 
+}
+
+#configuration form input[type="number"] {
+	width: 4em;
+}
+
+#configuration form input[type="range"] {
+	width: 8em;
+	height: 4px;
+}
+
+#configuration form input[type="checkbox"] {
+	margin: 3px;
+}
+
+#configuration output {
+	font-size: 80%;	
+	min-width: 3em;
+	display: inline-block;
+}
+
+#configuration_buttons {
+	border-top: 1px solid #ccc;
+	padding: 10px;
+	margin: 10px;
+}
+
+#configuration_buttons button {
+	font-size: 1em;
+}
+
+
+
+/*
+ * Image Table
+ */
+#imageTable {
+	border-collapse: collapse;
+}
+
+
+#imageTable tr td, #imageTable tr th {
+	padding: 6px;
+	border: 1px dotted #cccccc;
+	vertical-align: middle;
+	white-space: nowrap;
+}
+
+#imageTable img {
+	max-height: 200px;
+	margin: 5px;
+}
+
+#imageTable .originalImage, #imageTable .thumbnail {
+	text-align: center;
+}
+
+#imageTable .info {
+	width: 100%;
+}
+
+#imageTable .buttons img {
+	cursor: pointer;
+}
+
+#imagesSignatureMagnify {
+	height: 2px;
+	width: 100px;
+	margin-top: 4px;
+}
+
+#imagesMagnifyReset {
+	font-size: 8pt;
+}
